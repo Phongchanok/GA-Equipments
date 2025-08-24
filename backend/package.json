@@ -10,7 +10,9 @@
     "start": "node server.js",
     "seed": "node scripts/seed.js"
   },
-  "engines": { "node": "20.x" },
+  "engines": {
+    "node": "20.x"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
