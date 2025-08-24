@@ -18,6 +18,7 @@ import { errorHandler } from './src/middleware/error.js';
 const app = express();
 app.set('trust proxy', 1);
 
+
 // --- CORS (รองรับ credentials + preflight) ---
 const allowed = (process.env.CORS_ORIGIN || '')
   .split(',')
@@ -26,7 +27,7 @@ const allowed = (process.env.CORS_ORIGIN || '')
 
 const corsConfig = {
   origin: (origin, cb) => {
-    if (!origin) return cb(null, true); // รองรับ curl / server-to-server
+    if (!origin) return cb(null, true); // อนุญาตกรณีไม่มี Origin (curl/health)
     if (allowed.length === 0 || allowed.includes(origin)) return cb(null, true);
     return cb(new Error('Not allowed by CORS'));
   },
@@ -35,9 +36,9 @@ const corsConfig = {
   allowedHeaders: ['Content-Type','Authorization'],
 };
 
-// สำคัญ: Express v5 ห้ามใช้ '*' ให้ใช้ '(.*)'
-app.options('(.*)', cors(corsConfig));
+app.options('/:path(*)', cors(corsConfig)); // ✅ Express v5 ok
 app.use(cors(corsConfig));
+
 
 // --- Security/Middlewares ---
 app.use(helmet());
