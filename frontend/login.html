@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>เข้าสู่ระบบ - GA Equipment</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
+    body { font-family: 'Sarabun', sans-serif; }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-6">
+  <div class="w-full max-w-md bg-white rounded-2xl shadow-lg p-8">
+    <div class="flex items-center gap-3 mb-6">
+      <div class="bg-blue-600 w-10 h-10 rounded-lg grid place-items-center text-white">
+        <i class="fas fa-tools"></i>
+      </div>
+      <h1 class="text-xl font-bold">GA Equipment</h1>
+    </div>
+
+    <form id="loginForm" class="space-y-4">
+      <div>
+        <label class="block text-sm text-gray-700 mb-1">ชื่อผู้ใช้</label>
+        <input id="username" class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500" required />
+      </div>
+      <div>
+        <label class="block text-sm text-gray-700 mb-1">รหัสผ่าน</label>
+        <input id="password" type="password" class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500" required />
+      </div>
+      <div id="loginError" class="hidden text-sm text-red-600"></div>
+      <button class="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2 font-medium">เข้าสู่ระบบ</button>
+    </form>
+
+    <p class="text-xs text-gray-500 mt-6">
+      ตัวอย่างจาก seed: admin/admin123 • inspector/inspect123 • user/user123
+    </p>
+  </div>
+
+  <!-- API Base + Client -->
+  <script>window.API_BASE_URL='https://<your-backend>.onrender.com';</script>
+  <script type="module" src="./api-client.js"></script>
+
+  <script type="module">
+    import { api } from '/public/api-client.js';
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const errBox = document.getElementById('loginError');
+      errBox.classList.add('hidden');
+
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value.trim();
+      try {
+        const { user } = await api.login(username, password);
+        if (user.role === 'admin') location.href = 'admin-dashboard.html';
+        else location.href = 'qr-scanner.html';
+      } catch (err) {
+        errBox.textContent = err.message || 'ไม่สามารถเข้าสู่ระบบได้';
+        errBox.classList.remove('hidden');
+      }
+    });
+  </script>
+</body>
+</html>

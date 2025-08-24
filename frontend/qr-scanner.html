@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>สแกน/ค้นหาอุปกรณ์ - GA Equipment</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
+    body { font-family: 'Sarabun', sans-serif; }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+  <nav class="bg-white shadow-sm">
+    <div class="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="bg-blue-600 w-10 h-10 rounded-lg grid place-items-center text-white">
+          <i class="fas fa-tools"></i>
+        </div>
+        <span class="font-bold">GA Equipment</span>
+      </div>
+      <button id="logoutBtn" class="text-red-600 hover:text-red-700"><i class="fas fa-sign-out-alt"></i> ออกจากระบบ</button>
+    </div>
+  </nav>
+
+  <main class="max-w-4xl mx-auto p-6">
+    <h1 class="text-2xl font-bold mb-4">สแกน/ค้นหาอุปกรณ์</h1>
+
+    <div class="bg-white rounded-xl shadow-md p-6">
+      <label class="block text-sm text-gray-700 mb-1">รหัสอุปกรณ์</label>
+      <div class="flex gap-3">
+        <input id="equipmentCodeInput" class="flex-1 border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500" placeholder="เช่น EQ001" />
+        <button id="goEquipmentBtn" class="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4">เปิดดู</button>
+      </div>
+      <div id="scannerError" class="hidden text-sm text-red-600 mt-2"></div>
+    </div>
+
+    <div class="mt-6 text-sm text-gray-600">
+      * สำหรับสแกน QR ด้วยกล้อง สามารถเพิ่มภายหลังได้
+    </div>
+  </main>
+
+  <!-- API Base + Client -->
+  <script>window.API_BASE_URL='https://<your-backend>.onrender.com';</script>
+  <script type="module" src="./api-client.js"></script>
+
+  <script type="module">
+    import { api } from '/public/api-client.js';
+
+    // Guard: ต้องล็อกอินก่อน
+    (async () => {
+      const me = await api.me();
+      if (!me) return location.replace('login.html');
+    })();
+
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      await api.logout();
+      location.href = 'login.html';
+    });
+
+    const input = document.getElementById('equipmentCodeInput');
+    const btn = document.getElementById('goEquipmentBtn');
+    const err = document.getElementById('scannerError');
+
+    btn.addEventListener('click', async () => {
+      err.classList.add('hidden');
+      const code = (input.value || '').trim();
+      if (!code) { err.textContent = 'กรุณากรอกรหัสอุปกรณ์'; err.classList.remove('hidden'); return; }
+      try {
+        await api.getEquipment(code);
+        location.href = `equipment-detail.html?code=${encodeURIComponent(code)}`;
+      } catch {
+        err.textContent = 'ไม่พบอุปกรณ์ตามรหัสที่กรอก';
+        err.classList.remove('hidden');
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>รายละเอียดอุปกรณ์ - GA Equipment</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
+    body { font-family: 'Sarabun', sans-serif; }
+    .tag { padding:2px 8px; border-radius:9999px; font-size:12px }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+  <nav class="bg-white shadow-sm">
+    <div class="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <button onclick="history.back()" class="text-gray-500 hover:text-gray-700"><i class="fas fa-arrow-left"></i></button>
+        <div class="bg-blue-600 w-10 h-10 rounded-lg grid place-items-center text-white">
+          <i class="fas fa-tools"></i>
+        </div>
+        <span class="font-bold">GA Equipment</span>
+      </div>
+      <a href="qr-scanner.html" class="text-blue-600 hover:text-blue-700">กลับหน้า Scanner</a>
+    </div>
+  </nav>
+
+  <main class="max-w-5xl mx-auto p-6 space-y-6">
+    <div class="bg-white rounded-xl shadow-md p-6">
+      <h1 id="equipmentTitle" class="text-2xl font-bold mb-1">-</h1>
+      <div id="equipmentMeta" class="text-sm text-gray-600">-</div>
+      <div id="detailError" class="hidden text-sm text-red-600 mt-2"></div>
+      <div id="detailSuccess" class="hidden text-sm text-green-600 mt-2"></div>
+    </div>
+
+    <!-- Checklist (ตัวอย่างง่าย ๆ ให้ติ๊กได้เลย) -->
+    <div class="bg-white rounded-xl shadow-md p-6">
+      <h2 class="text-lg font-semibold mb-4">รายการตรวจสอบ</h2>
+      <div class="grid sm:grid-cols-2 gap-3" id="checklistBox">
+        <label class="flex items-center gap-3 p-3 bg-gray-50 rounded" data-check-item data-label="ตรวจสอบการทำงานของปุ่มเปิด/ปิด">
+          <input type="checkbox" class="h-4 w-4"> <span>ตรวจสอบการทำงานของปุ่มเปิด/ปิด</span>
+        </label>
+        <label class="flex items-center gap-3 p-3 bg-gray-50 rounded" data-check-item data-label="ตรวจสอบเสียงผิดปกติ">
+          <input type="checkbox" class="h-4 w-4"> <span>ตรวจสอบเสียงผิดปกติ</span>
+        </label>
+        <label class="flex items-center gap-3 p-3 bg-gray-50 rounded" data-check-item data-label="ตรวจสอบการไหลของลม/การพิมพ์">
+          <input type="checkbox" class="h-4 w-4"> <span>ตรวจสอบการไหลของลม/การพิมพ์</span>
+        </label>
+        <label class="flex items-center gap-3 p-3 bg-gray-50 rounded" data-check-item data-label="ทำความสะอาดภายนอก">
+          <input type="checkbox" class="h-4 w-4"> <span>ทำความสะอาดภายนอก</span>
+        </label>
+      </div>
+      <div class="mt-4">
+        <button id="saveInspectionBtn" class="bg-green-600 hover:bg-green-700 text-white rounded-lg px-4 py-2">
+          บันทึกผลตรวจ
+        </button>
+      </div>
+    </div>
+
+    <!-- History -->
+    <div class="bg-white rounded-xl shadow-md p-6">
+      <h2 class="text-lg font-semibold mb-4">ประวัติการตรวจ</h2>
+      <div id="inspectionHistory">-</div>
+    </div>
+  </main>
+
+  <!-- API Base + Client -->
+  <script>window.API_BASE_URL='https://<your-backend>.onrender.com';</script>
+  <script type="module" src="./api-client.js"></script>
+
+  <script type="module">
+    import { api } from '/public/api-client.js';
+
+    const params = new URLSearchParams(location.search);
+    const code = params.get('code');
+
+    const titleEl = document.getElementById('equipmentTitle');
+    const metaEl  = document.getElementById('equipmentMeta');
+    const histEl  = document.getElementById('inspectionHistory');
+    const okBox   = document.getElementById('detailSuccess');
+    const errBox  = document.getElementById('detailError');
+
+    async function load() {
+      const me = await api.me();
+      if (!me) return location.replace('login.html');
+
+      try {
+        const [{ equipment }, history] = await Promise.all([
+          api.getEquipment(code),
+          api.listInspections(code, { page: 1, limit: 20 })
+        ]);
+        titleEl.textContent = `${equipment.code} - ${equipment.name}`;
+        metaEl.innerHTML = `
+          <div>ประเภท: ${equipment.type}</div>
+          <div>สถานที่: ${equipment.location}</div>
+          <div>สถานะ: <span class="font-medium">${equipment.status}</span></div>
+        `;
+        histEl.innerHTML = (history.items || []).map(it => `
+          <div class="p-3 bg-gray-50 rounded mb-2">
+            <div class="text-sm">วันที่: ${new Date(it.date).toLocaleString('th-TH')}</div>
+            <div class="text-sm">ผลรวม: <span class="font-medium">${it.overallStatus}</span></div>
+          </div>
+        `).join('') || '<div class="text-gray-500">ยังไม่มีประวัติการตรวจ</div>';
+      } catch {
+        errBox.textContent = 'โหลดข้อมูลอุปกรณ์/ประวัติล้มเหลว';
+        errBox.classList.remove('hidden');
+      }
+    }
+
+    document.getElementById('saveInspectionBtn').addEventListener('click', async () => {
+      okBox.classList.add('hidden'); errBox.classList.add('hidden');
+      const items = Array.from(document.querySelectorAll('[data-check-item]')).map(el => ({
+        label: el.getAttribute('data-label'),
+        status: el.querySelector('input[type=checkbox]')?.checked ? 'ปกติ' : 'ผิดปกติ'
+      }));
+      const overallStatus = items.some(i => i.status === 'ผิดปกติ') ? 'ผิดปกติ' : 'ปกติ';
+      try {
+        await api.createInspection(code, { items, overallStatus });
+        okBox.textContent = 'บันทึกผลตรวจเรียบร้อย'; okBox.classList.remove('hidden');
+        const history = await api.listInspections(code, { page: 1, limit: 20 });
+        histEl.innerHTML = history.items.map(it => `
+          <div class="p-3 bg-gray-50 rounded mb-2">
+            <div class="text-sm">วันที่: ${new Date(it.date).toLocaleString('th-TH')}</div>
+            <div class="text-sm">ผลรวม: <span class="font-medium">${it.overallStatus}</span></div>
+          </div>
+        `).join('');
+      } catch {
+        errBox.textContent = 'บันทึกผลตรวจล้มเหลว'; errBox.classList.remove('hidden');
+      }
+    });
+
+    load();
+  </script>
+</body>
+</html>

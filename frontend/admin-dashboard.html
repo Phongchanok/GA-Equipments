@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GA Equipment Management - Admin Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
+    body { font-family: 'Sarabun', sans-serif; }
+    .fade-in { animation: fadeIn 0.3s ease-in; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px);} to { opacity: 1; transform: translateY(0);} }
+    .modal-backdrop { backdrop-filter: blur(4px); }
+    .tab-active { border-bottom: 2px solid #3B82F6; color: #3B82F6; }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+  <!-- Navigation -->
+  <nav class="bg-white shadow-sm">
+    <div class="px-6 py-4">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-8">
+          <div class="flex items-center space-x-3">
+            <div class="bg-blue-600 w-10 h-10 rounded-lg flex items-center justify-center">
+              <i class="fas fa-tools text-white"></i>
+            </div>
+            <span class="text-xl font-bold text-gray-800">GA Equipment</span>
+          </div>
+          <div class="hidden md:flex space-x-6">
+            <button onclick="showAdminPage('dashboard', this)" class="nav-btn text-blue-600 border-b-2 border-blue-600 pb-2">หน้าแรก</button>
+            <button onclick="showAdminPage('equipment', this)" class="nav-btn text-gray-600 hover:text-blue-600 pb-2">อุปกรณ์</button>
+            <button onclick="showAdminPage('requests', this)" class="nav-btn text-gray-600 hover:text-blue-600 pb-2">คำร้องขอ</button>
+            <button onclick="showAdminPage('reports', this)" class="nav-btn text-gray-600 hover:text-blue-600 pb-2">รายงาน</button>
+            <button onclick="showAdminPage('settings', this)" class="nav-btn text-gray-600 hover:text-blue-600 pb-2">ตั้งค่า</button>
+          </div>
+        </div>
+        <button onclick="logout()" class="text-red-600 hover:text-red-700">
+          <i class="fas fa-sign-out-alt"></i> ออกจากระบบ
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Dashboard Content -->
+  <div id="dashboardContent" class="p-6">
+    <h1 class="text-2xl font-bold text-gray-800 mb-6">แดชบอร์ด</h1>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+      <div class="bg-white rounded-lg shadow-md p-6"><div class="flex items-center"><div class="bg-blue-100 p-3 rounded-full"><i class="fas fa-tools text-blue-600 text-xl"></i></div><div class="ml-4"><p class="text-sm text-gray-600">อุปกรณ์ทั้งหมด</p><p id="statAll" class="text-2xl font-bold text-gray-800">-</p></div></div></div>
+      <div class="bg-white rounded-lg shadow-md p-6"><div class="flex items-center"><div class="bg-yellow-100 p-3 rounded-full"><i class="fas fa-clock text-yellow-600 text-xl"></i></div><div class="ml-4"><p class="text-sm text-gray-600">คำร้องขอคงค้าง</p><p id="statPending" class="text-2xl font-bold text-gray-800">-</p></div></div></div>
+      <div class="bg-white rounded-lg shadow-md p-6"><div class="flex items-center"><div class="bg-green-100 p-3 rounded-full"><i class="fas fa-check-circle text-green-600 text-xl"></i></div><div class="ml-4"><p class="text-sm text-gray-600">สถานะปกติ</p><p id="statOk" class="text-2xl font-bold text-gray-800">-</p></div></div></div>
+      <div class="bg-white rounded-lg shadow-md p-6"><div class="flex items-center"><div class="bg-red-100 p-3 rounded-full"><i class="fas fa-exclamation-triangle text-red-600 text-xl"></i></div><div class="ml-4"><p class="text-sm text-gray-600">สถานะผิดปกติ</p><p id="statBad" class="text-2xl font-bold text-gray-800">-</p></div></div></div>
+      <div class="bg-white rounded-lg shadow-md p-6"><div class="flex items-center"><div class="bg-orange-100 p-3 rounded-full"><i class="fas fa-hourglass-half text-orange-600 text-xl"></i></div><div class="ml-4"><p class="text-sm text-gray-600">รอตรวจสอบ</p><p id="statWait" class="text-2xl font-bold text-gray-800">-</p></div></div></div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">ประวัติการตรวจล่าสุด</h2>
+        <div id="recentInspections" class="space-y-3"></div>
+      </div>
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">คำร้องขอล่าสุด</h2>
+        <div id="recentRequests" class="space-y-3"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Equipment Management -->
+  <div id="equipmentContent" class="hidden p-6">
+    <div class="flex items-center justify-between mb-6">
+      <h1 class="text-2xl font-bold text-gray-800">จัดการอุปกรณ์</h1>
+      <button onclick="showAddEquipmentModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"> <i class="fas fa-plus mr-2"></i>เพิ่มอุปกรณ์ </button>
+    </div>
+    <div class="bg-white rounded-lg shadow-md p-4 mb-6">
+      <input id="equipmentSearch" placeholder="ค้นหาอุปกรณ์..." class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+    </div>
+    <div class="bg-white rounded-lg shadow-md overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">รหัสอุปกรณ์</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ชื่ออุปกรณ์</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ประเภท</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">สถานที่</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">สถานะ</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">การจัดการ</th>
+            </tr>
+          </thead>
+          <tbody id="equipmentTableBody" class="bg-white divide-y divide-gray-200"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Requests Management -->
+  <div id="requestsContent" class="hidden p-6">
+    <div class="flex items-center justify-between mb-6">
+      <h1 class="text-2xl font-bold text-gray-800">จัดการคำร้องขอ</h1>
+      <button onclick="showAddRequestModal()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"><i class="fas fa-plus mr-2"></i>สร้างคำร้องขอ</button>
+    </div>
+    <div class="bg-white rounded-lg shadow-md p-4 mb-6">
+      <input id="requestSearch" placeholder="ค้นหาคำร้องขอ..." class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+    </div>
+    <div class="bg-white rounded-lg shadow-md overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">วันที่ร้องขอ</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ชื่ออุปกรณ์</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">จำนวน</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">สถานที่</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ผู้ร้องขอ</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">สถานะ</th>
+            </tr>
+          </thead>
+          <tbody id="requestsTableBody" class="bg-white divide-y divide-gray-200"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reports -->
+  <div id="reportsContent" class="hidden p-6">
+    <h1 class="text-2xl font-bold text-gray-800 mb-6">รายงาน</h1>
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+      <h2 class="text-lg font-semibold text-gray-800 mb-4">ส่งออกข้อมูล</h2>
+      <div class="flex flex-wrap gap-4">
+        <button onclick="exportData('equipment')" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-download mr-2"></i>ส่งออกข้อมูลอุปกรณ์</button>
+        <button onclick="exportData('requests')" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition"><i class="fas fa-download mr-2"></i>ส่งออกข้อมูลคำร้องขอ</button>
+      </div>
+    </div>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+      <div class="bg-white rounded-lg shadow-md p-4">
+        <h3 class="text-base font-semibold text-gray-800 mb-3">สถานะการตรวจสอบอุปกรณ์</h3>
+        <div class="h-48 flex items-center justify-center"><canvas id="inspectionStatusChart"></canvas></div>
+      </div>
+      <div class="bg-white rounded-lg shadow-md p-4">
+        <h3 class="text-base font-semibold text-gray-800 mb-3">ประเภทอุปกรณ์</h3>
+        <div class="h-48 flex items-center justify-center"><canvas id="equipmentTypeChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings -->
+  <div id="settingsContent" class="hidden p-6">
+    <h1 class="text-2xl font-bold text-gray-800 mb-6">ตั้งค่าระบบ</h1>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">ประเภทอุปกรณ์</h2>
+        <div class="space-y-3 mb-4"><div id="equipmentTypesList"></div></div>
+        <div class="flex gap-2">
+          <input id="newEquipmentType" placeholder="ประเภทอุปกรณ์ใหม่" class="flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+          <button onclick="addEquipmentType()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">เพิ่ม</button>
+        </div>
+      </div>
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">สถานที่</h2>
+        <div class="space-y-3 mb-4"><div id="locationsList"></div></div>
+        <div class="flex gap-2">
+          <input id="newLocation" placeholder="สถานที่ใหม่" class="flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+          <button onclick="addLocation()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">เพิ่ม</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-6 mb-6">
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">ระยะเวลาการตรวจสอบ</h2>
+        <div class="overflow-x-auto">
+          <table class="w-full">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ประเภทอุปกรณ์</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ระยะเวลา (วัน)</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">การจัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="inspectionIntervalsTable" class="bg-white divide-y divide-gray-200"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-6">
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-semibold text-gray-800">รายการตรวจสอบตามประเภทอุปกรณ์</h2>
+          <button onclick="showAddChecklistModal()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"><i class="fas fa-plus mr-2"></i>เพิ่มรายการ</button>
+        </div>
+        <div class="border-b border-gray-200 mb-4">
+          <nav class="-mb-px flex space-x-8" id="checklistTabs"></nav>
+        </div>
+        <div id="checklistContent"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Equipment Modal -->
+  <div id="addEquipmentModal" class="hidden fixed inset-0 bg-black bg-opacity-50 modal-backdrop flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full fade-in">
+      <div class="p-6">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">เพิ่มอุปกรณ์ใหม่</h2>
+        <form id="addEquipmentForm" class="space-y-4">
+          <div><label class="block text-sm font-medium text-gray-700 mb-2">รหัสอุปกรณ์</label><input id="equipmentCode" class="w-full px-3 py-2 border rounded-lg" required></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-2">ชื่ออุปกรณ์</label><input id="equipmentName" class="w-full px-3 py-2 border rounded-lg" required></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-2">ประเภทอุปกรณ์</label><input id="equipmentTypeSelect" class="w-full px-3 py-2 border rounded-lg" required></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-2">สถานที่</label><input id="equipmentLocationSelect" class="w-full px-3 py-2 border rounded-lg" required></div>
+          <div class="flex gap-3 pt-2">
+            <button class="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">ยืนยัน</button>
+            <button type="button" onclick="closeModal('addEquipmentModal')" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400">ยกเลิก</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Request Modal -->
+  <div id="addRequestModal" class="hidden fixed inset-0 bg-black bg-opacity-50 modal-backdrop flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full fade-in">
+      <div class="p-6">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">สร้างคำร้องขอใหม่</h2>
+        <form id="addRequestForm" class="space-y-4">
+          <div><label class="block text-sm font-medium text-gray-700 mb-2">ชื่ออุปกรณ์</label><input id="requestEquipmentName" required class="w-full px-3 py-2 border rounded-lg"></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-2">จำนวน</label><input id="requestQuantity" type="number" min="1" required class="w-full px-3 py-2 border rounded-lg"></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-2">สถานที่</label><input id="requestLocationSelect" required class="w-full px-3 py-2 border rounded-lg"></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-2">ชื่อผู้ร้องขอ</label><input id="requesterName" required class="w-full px-3 py-2 border rounded-lg"></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-2">หมายเหตุ</label><textarea id="requestNote" rows="2" class="w-full px-3 py-2 border rounded-lg"></textarea></div>
+          <div class="flex gap-3 pt-2">
+            <button class="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700">บันทึก</button>
+            <button type="button" onclick="closeModal('addRequestModal')" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400">ยกเลิก</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Checklist Modal -->
+  <div id="addChecklistModal" class="hidden fixed inset-0 bg-black bg-opacity-50 modal-backdrop flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full fade-in">
+      <div class="p-6">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">เพิ่มรายการตรวจสอบ</h2>
+        <form id="addChecklistForm" class="space-y-4">
+          <div><label class="block text-sm font-medium text-gray-700 mb-2">ประเภทอุปกรณ์</label><select id="checklistEquipmentType" required class="w-full px-3 py-2 border rounded-lg"><option value="">เลือกประเภทอุปกรณ์</option></select></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-2">รายการตรวจสอบ</label><input id="checklistItem" required placeholder="เช่น ตรวจสอบการทำงานของปุ่มเปิด/ปิด" class="w-full px-3 py-2 border rounded-lg"></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-2">หมายเหตุ</label><textarea id="checklistNote" rows="2" class="w-full px-3 py-2 border rounded-lg"></textarea></div>
+          <div class="flex gap-3 pt-2">
+            <button class="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700">เพิ่ม</button>
+            <button type="button" onclick="closeModal('addChecklistModal')" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400">ยกเลิก</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Interval Modal -->
+  <div id="editIntervalModal" class="hidden fixed inset-0 bg-black bg-opacity-50 modal-backdrop flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full fade-in">
+      <div class="p-6">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">แก้ไขระยะเวลาการตรวจสอบ</h2>
+        <form id="editIntervalForm" class="space-y-4">
+          <div><label class="block text-sm font-medium text-gray-700 mb-2">ประเภทอุปกรณ์</label><input id="intervalEquipmentType" readonly class="w-full px-3 py-2 border rounded-lg bg-gray-100"></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-2">ระยะเวลา (วัน)</label><input id="intervalDays" type="number" min="1" max="365" required class="w-full px-3 py-2 border rounded-lg"></div>
+          <div class="flex gap-3 pt-2">
+            <button class="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">บันทึก</button>
+            <button type="button" onclick="closeModal('editIntervalModal')" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400">ยกเลิก</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- API Base + Client -->
+  <script>window.API_BASE_URL='https://<your-backend>.onrender.com';</script>
+  <script type="module" src="./api-client.js"></script>
+
+  <script type="module">
+    import { api } from '/public/api-client.js';
+
+    // ---------- Auth & Nav ----------
+    document.addEventListener('DOMContentLoaded', async () => {
+      const me = await api.me();
+      if (!me || !me.user || me.user.role !== 'admin') return location.replace('login.html');
+      initializeAdmin();
+      await refreshStats();
+    });
+
+    window.showAdminPage = (page, btnEl) => {
+      ['dashboard','equipment','requests','reports','settings'].forEach(p => {
+        document.getElementById(p+'Content').classList.add('hidden');
+      });
+      document.getElementById(page+'Content').classList.remove('hidden');
+      document.querySelectorAll('.nav-btn').forEach(b => b.className='nav-btn text-gray-600 hover:text-blue-600 pb-2');
+      if (btnEl) btnEl.className='nav-btn text-blue-600 border-b-2 border-blue-600 pb-2';
+      if (page==='reports') setTimeout(initializeCharts, 100);
+      if (page==='settings') initializeSettings();
+    };
+
+    window.logout = async () => { await api.logout(); location.href='login.html'; };
+    window.closeModal = (id) => document.getElementById(id).classList.add('hidden');
+    window.showAddEquipmentModal = () => document.getElementById('addEquipmentModal').classList.remove('hidden');
+    window.showAddRequestModal = () => document.getElementById('addRequestModal').classList.remove('hidden');
+
+    // ---------- Helpers ----------
+    window.getStatusClass = (s) => s==='ปกติ' ? 'bg-green-100 text-green-800 tag' : s==='ผิดปกติ' ? 'bg-red-100 text-red-800 tag' : 'bg-orange-100 text-orange-800 tag';
+    window.getRequestStatusClass = (s) => ({
+      'รอตอบรับ':'bg-yellow-100 text-yellow-800',
+      'กำลังดำเนินการ':'bg-blue-100 text-blue-800',
+      'เสร็จสิ้น':'bg-green-100 text-green-800',
+      'ยกเลิก':'bg-red-100 text-red-800'
+    }[s] || 'bg-gray-100 text-gray-800');
+
+    async function refreshStats() {
+      // สถิติคร่าว ๆ: รวมจากรายการ (เรียกเพียงหน้าแรก)
+      const [{ items: eqs }, { items: reqs }] = await Promise.all([
+        api.listEquipment({ page:1, limit:500 }),
+        api.listRequests({ page:1, limit:50 })
+      ]);
+      document.getElementById('statAll').textContent = eqs.length;
+      document.getElementById('statOk').textContent = eqs.filter(e => e.status==='ปกติ').length;
+      document.getElementById('statBad').textContent = eqs.filter(e => e.status==='ผิดปกติ').length;
+      document.getElementById('statWait').textContent = eqs.filter(e => e.status==='รอตรวจสอบ').length;
+      document.getElementById('statPending').textContent = reqs.filter(r => r.status==='รอตอบรับ').length;
+
+      // recent
+      // ล่าสุดจากประวัติ: ใช้แค่ render ตัวอย่าง (จริง ๆ อาจเพิ่ม endpoint summary)
+      const recentIns = document.getElementById('recentInspections');
+      recentIns.innerHTML = '<div class="text-gray-500">แสดงผลเมื่อมีการตรวจผ่านหน้า equipment-detail</div>';
+      const recentReq = document.getElementById('recentRequests');
+      recentReq.innerHTML = reqs.slice(0,5).map(r => `
+        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+          <div>
+            <p class="font-medium">${r.equipment}</p>
+            <p class="text-sm text-gray-600">ผู้ร้องขอ: ${r.requester}</p>
+          </div>
+          <span class="px-2 py-1 rounded-full text-sm ${getRequestStatusClass(r.status)}">${r.status}</span>
+        </div>
+      `).join('') || '<div class="text-gray-500">ยังไม่มีคำร้อง</div>';
+    }
+
+    // ---------- Equipment ----------
+    async function populateEquipmentTable() {
+      const tbody = document.getElementById('equipmentTableBody');
+      tbody.innerHTML = '<tr><td class="px-6 py-4" colspan="6">กำลังโหลด...</td></tr>';
+      try {
+        const query = document.getElementById('equipmentSearch').value.trim();
+        const { items } = await api.listEquipment({ page:1, limit:100, query });
+        tbody.innerHTML = items.map(eq => `
+          <tr>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${eq.code}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${eq.name}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${eq.type}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${eq.location}</td>
+            <td class="px-6 py-4 whitespace-nowrap"><span class="${getStatusClass(eq.status)}">${eq.status}</span></td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+              <div class="flex space-x-2">
+                <button onclick="editEquipment('${eq.code}')" class="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50" title="แก้ไข"><i class="fas fa-edit"></i></button>
+                <button onclick="deleteEquipment('${eq.code}')" class="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50" title="ลบ"><i class="fas fa-trash"></i></button>
+              </div>
+            </td>
+          </tr>
+        `).join('');
+      } catch {
+        tbody.innerHTML = '<tr><td class="px-6 py-4 text-red-600" colspan="6">โหลดรายการอุปกรณ์ล้มเหลว</td></tr>';
+      }
+    }
+    window.populateEquipmentTable = populateEquipmentTable;
+
+    window.editEquipment = async (code) => {
+      const newName = prompt('แก้ไขชื่ออุปกรณ์ใหม่:');
+      if (!newName) return;
+      try { await api.updateEquipment(code, { name: newName }); await populateEquipmentTable(); alert('แก้ไขข้อมูลเรียบร้อย'); }
+      catch { alert('แก้ไขอุปกรณ์ล้มเหลว'); }
+    };
+    window.deleteEquipment = async (code) => {
+      if (!confirm('ยืนยันการลบอุปกรณ์?')) return;
+      try { await api.deleteEquipment(code); await populateEquipmentTable(); alert('ลบอุปกรณ์เรียบร้อย'); }
+      catch { alert('ลบอุปกรณ์ล้มเหลว'); }
+    };
+
+    document.getElementById('addEquipmentForm')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const payload = {
+        code: document.getElementById('equipmentCode').value.trim(),
+        name: document.getElementById('equipmentName').value.trim(),
+        type: document.getElementById('equipmentTypeSelect').value.trim(),
+        location: document.getElementById('equipmentLocationSelect').value.trim(),
+        status: 'รอตรวจสอบ'
+      };
+      try { await api.createEquipment(payload); await populateEquipmentTable(); closeModal('addEquipmentModal'); alert('เพิ่มอุปกรณ์เรียบร้อย'); e.target.reset(); }
+      catch { alert('เพิ่มอุปกรณ์ล้มเหลว (รหัสอาจซ้ำ)'); }
+    });
+
+    document.getElementById('equipmentSearch').addEventListener('input', () => { clearTimeout(window.__eqTimer); window.__eqTimer=setTimeout(populateEquipmentTable, 300); });
+
+    // ---------- Requests ----------
+    async function populateRequestsTable() {
+      const tbody = document.getElementById('requestsTableBody');
+      tbody.innerHTML = '<tr><td class="px-6 py-4" colspan="6">กำลังโหลด...</td></tr>';
+      try {
+        const { items } = await api.listRequests({ page:1, limit:100 });
+        tbody.innerHTML = items.map(req => `
+          <tr>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${new Date(req.date).toISOString().split('T')[0]}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${req.equipment}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${req.quantity}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${req.location}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${req.requester}</td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <select onchange="updateRequestStatus('${req._id}', this.value)" class="px-2 py-1 rounded-full text-xs border-0 ${getRequestStatusClass(req.status)} focus:ring-2 focus:ring-blue-500">
+                <option value="รอตอบรับ" ${req.status==='รอตอบรับ'?'selected':''}>รอตอบรับ</option>
+                <option value="กำลังดำเนินการ" ${req.status==='กำลังดำเนินการ'?'selected':''}>กำลังดำเนินการ</option>
+                <option value="เสร็จสิ้น" ${req.status==='เสร็จสิ้น'?'selected':''}>เสร็จสิ้น</option>
+                <option value="ยกเลิก" ${req.status==='ยกเลิก'?'selected':''}>ยกเลิก</option>
+              </select>
+            </td>
+          </tr>
+        `).join('');
+      } catch {
+        tbody.innerHTML = '<tr><td class="px-6 py-4 text-red-600" colspan="6">โหลดคำร้องขอล้มเหลว</td></tr>';
+      }
+    }
+    window.populateRequestsTable = populateRequestsTable;
+
+    window.updateRequestStatus = async (id, status) => {
+      try { await api.updateRequestStatus(id, status); await populateRequestsTable(); alert('เปลี่ยนสถานะเรียบร้อย'); }
+      catch { alert('อัปเดตสถานะล้มเหลว'); }
+    };
+
+    document.getElementById('addRequestForm')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const payload = {
+        equipment: document.getElementById('requestEquipmentName').value.trim(),
+        quantity: parseInt(document.getElementById('requestQuantity').value, 10),
+        location: document.getElementById('requestLocationSelect').value.trim(),
+        requester: document.getElementById('requesterName').value.trim(),
+        note: document.getElementById('requestNote').value.trim()
+      };
+      try { await api.createRequest(payload); await populateRequestsTable(); closeModal('addRequestModal'); alert('สร้างคำร้องขอเรียบร้อย'); e.target.reset(); }
+      catch { alert('สร้างคำร้องขอล้มเหลว'); }
+    });
+
+    // ---------- Settings ----------
+    let settings = null;
+
+    async function initializeSettings() {
+      try {
+        const res = await api.getSettings();
+        settings = res.settings;
+        updateEquipmentTypesList();
+        updateLocationsList();
+        updateInspectionIntervalsTable();
+        updateChecklistTabs();
+        updateChecklistContent();
+      } catch {
+        alert('โหลด Settings ล้มเหลว');
+      }
+    }
+    window.initializeSettings = initializeSettings;
+
+    window.addEquipmentType = async () => {
+      const input = document.getElementById('newEquipmentType');
+      const type = (input.value || '').trim();
+      if (!type) return;
+      settings.equipmentTypes = Array.from(new Set([...(settings.equipmentTypes || []), type]));
+      settings.inspectionIntervals = { ...(settings.inspectionIntervals || {}), [type]: 30 };
+      settings.inspectionChecklists = settings.inspectionChecklists || {};
+      settings.inspectionChecklists[type] = settings.inspectionChecklists[type] || [];
+      await api.updateSettings({
+        equipmentTypes: settings.equipmentTypes,
+        inspectionIntervals: settings.inspectionIntervals,
+        inspectionChecklists: settings.inspectionChecklists
+      });
+      input.value=''; initializeSettings();
+    };
+
+    window.removeEquipmentType = async (type) => {
+      settings.equipmentTypes = (settings.equipmentTypes || []).filter(t => t !== type);
+      if (settings.inspectionIntervals) delete settings.inspectionIntervals[type];
+      if (settings.inspectionChecklists) delete settings.inspectionChecklists[type];
+      await api.updateSettings({
+        equipmentTypes: settings.equipmentTypes,
+        inspectionIntervals: settings.inspectionIntervals,
+        inspectionChecklists: settings.inspectionChecklists
+      });
+      initializeSettings();
+    };
+
+    window.addLocation = async () => {
+      const input = document.getElementById('newLocation');
+      const loc = (input.value || '').trim();
+      if (!loc) return;
+      settings.locations = Array.from(new Set([...(settings.locations || []), loc]));
+      await api.updateSettings({ locations: settings.locations });
+      input.value=''; initializeSettings();
+    };
+
+    window.removeLocation = async (loc) => {
+      settings.locations = (settings.locations || []).filter(l => l !== loc);
+      await api.updateSettings({ locations: settings.locations });
+      initializeSettings();
+    };
+
+    window.showEditIntervalModal = (type) => {
+      document.getElementById('intervalEquipmentType').value = type;
+      document.getElementById('intervalDays').value = settings.inspectionIntervals?.[type] ?? 30;
+      document.getElementById('editIntervalModal').classList.remove('hidden');
+    };
+
+    document.getElementById('editIntervalForm')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const type = document.getElementById('intervalEquipmentType').value;
+      const days = parseInt(document.getElementById('intervalDays').value, 10);
+      settings.inspectionIntervals = { ...(settings.inspectionIntervals || {}), [type]: days };
+      await api.updateSettings({ inspectionIntervals: settings.inspectionIntervals });
+      closeModal('editIntervalModal'); initializeSettings();
+    });
+
+    window.showAddChecklistModal = () => {
+      const sel = document.getElementById('checklistEquipmentType');
+      const types = settings.equipmentTypes || [];
+      sel.innerHTML = '<option value=\"\">เลือกประเภทอุปกรณ์</option>' + types.map(t => `<option value=\"${t}\">${t}</option>`).join('');
+      document.getElementById('addChecklistModal').classList.remove('hidden');
+    };
+
+    document.getElementById('addChecklistForm')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const type = document.getElementById('checklistEquipmentType').value;
+      const item = document.getElementById('checklistItem').value.trim();
+      const note = document.getElementById('checklistNote').value.trim();
+      settings.inspectionChecklists = settings.inspectionChecklists || {};
+      const arr = settings.inspectionChecklists[type] || [];
+      arr.push({ item, note });
+      settings.inspectionChecklists[type] = arr;
+      await api.updateSettings({ inspectionChecklists: settings.inspectionChecklists });
+      closeModal('addChecklistModal'); initializeSettings();
+    });
+
+    window.removeChecklistItem = async (type, index) => {
+      const arr = settings.inspectionChecklists?.[type] || [];
+      arr.splice(index, 1);
+      settings.inspectionChecklists[type] = arr;
+      await api.updateSettings({ inspectionChecklists: settings.inspectionChecklists });
+      updateChecklistContent();
+    };
+
+    function updateEquipmentTypesList() {
+      const c = document.getElementById('equipmentTypesList');
+      c.innerHTML = (settings.equipmentTypes||[]).map(type => `
+        <div class="flex items-center justify-between p-2 bg-gray-50 rounded">
+          <span>${type}</span>
+          <button onclick="removeEquipmentType('${type}')" class="text-red-600 hover:text-red-800"><i class="fas fa-trash"></i></button>
+        </div>
+      `).join('') || '<div class="text-gray-500">ยังไม่มีประเภท</div>';
+    }
+
+    function updateLocationsList() {
+      const c = document.getElementById('locationsList');
+      c.innerHTML = (settings.locations||[]).map(loc => `
+        <div class="flex items-center justify-between p-2 bg-gray-50 rounded">
+          <span>${loc}</span>
+          <button onclick="removeLocation('${loc}')" class="text-red-600 hover:text-red-800"><i class="fas fa-trash"></i></button>
+        </div>
+      `).join('') || '<div class="text-gray-500">ยังไม่มีสถานที่</div>';
+    }
+
+    function updateInspectionIntervalsTable() {
+      const tbody = document.getElementById('inspectionIntervalsTable');
+      const types = settings.equipmentTypes || [];
+      tbody.innerHTML = types.map(type => `
+        <tr>
+          <td class="px-4 py-3 text-sm text-gray-900">${type}</td>
+          <td class="px-4 py-3 text-sm text-gray-900">${settings.inspectionIntervals?.[type] ?? 30}</td>
+          <td class="px-4 py-3 text-sm text-gray-500">
+            <button onclick="showEditIntervalModal('${type}')" class="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50" title="แก้ไข">
+              <i class="fas fa-edit"></i>
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    let currentChecklistTab = '';
+    function updateChecklistTabs() {
+      const nav = document.getElementById('checklistTabs');
+      const types = settings.equipmentTypes || [];
+      if (!currentChecklistTab) currentChecklistTab = types[0] || '';
+      nav.innerHTML = types.map(t => `
+        <button onclick="switchChecklistTab('${t}')" class="py-2 px-1 border-b-2 font-medium text-sm ${t===currentChecklistTab?'tab-active':'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}">${t}</button>
+      `).join('') || '<div class="text-gray-500">ยังไม่มีประเภท</div>';
+    }
+    function updateChecklistContent() {
+      const c = document.getElementById('checklistContent');
+      const arr = settings.inspectionChecklists?.[currentChecklistTab] || [];
+      if (!arr.length) { c.innerHTML = '<p class="text-gray-500 text-center py-8">ยังไม่มีรายการตรวจสอบสำหรับประเภทนี้</p>'; return; }
+      c.innerHTML = `
+        <div class="space-y-3">
+          ${arr.map((it,i) => `
+            <div class="flex items-start justify-between p-4 bg-gray-50 rounded-lg">
+              <div class="flex-1">
+                <p class="font-medium text-gray-900">${it.item}</p>
+                ${it.note ? `<p class="text-sm text-gray-600 mt-1">${it.note}</p>` : ''}
+              </div>
+              <button onclick="removeChecklistItem('${currentChecklistTab}', ${i})" class="text-red-600 hover:text-red-800 ml-4"><i class="fas fa-trash"></i></button>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+    window.switchChecklistTab = (t) => { currentChecklistTab = t; updateChecklistTabs(); updateChecklistContent(); };
+
+    // ---------- Reports (Charts) ----------
+    function initializeCharts() {
+      const statusEl = document.getElementById('inspectionStatusChart');
+      if (statusEl) {
+        new Chart(statusEl, { type:'doughnut', data:{ labels:['ปกติ','ผิดปกติ','รอตรวจสอบ'], datasets:[{ data:[12,2,1] }] }, options:{ plugins:{ legend:{ position:'bottom' } } } });
+      }
+      const typeEl = document.getElementById('equipmentTypeChart');
+      if (typeEl) {
+        new Chart(typeEl, { type:'doughnut', data:{ labels:['เครื่องปรับอากาศ','เครื่องพิมพ์','คอมพิวเตอร์','เครื่องถ่ายเอกสาร'], datasets:[{ data:[5,4,3,3] }] }, options:{ plugins:{ legend:{ position:'bottom' } } } });
+      }
+    }
+    window.initializeCharts = initializeCharts;
+
+    // ---------- Export ----------
+    window.exportData = async (type) => {
+      try {
+        const r = await fetch(`${window.API_BASE_URL}/export/${type}`, { credentials:'include' });
+        if (!r.ok) throw new Error();
+        const blob = await r.blob();
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `${type}_data.csv`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+      } catch { alert('ส่งออกข้อมูลล้มเหลว'); }
+    };
+
+    // ---------- Bootstrap ----------
+    function initializeAdmin() {
+      populateEquipmentTable();
+      populateRequestsTable();
+      initializeSettings();
+      initializeCharts();
+    }
+  </script>
+</body>
+</html>
