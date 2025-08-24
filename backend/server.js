@@ -18,7 +18,6 @@ import { errorHandler } from './src/middleware/error.js';
 const app = express();
 app.set('trust proxy', 1);
 
-
 // --- CORS (รองรับ credentials + preflight) ---
 const allowed = (process.env.CORS_ORIGIN || '')
   .split(',')
@@ -36,9 +35,9 @@ const corsConfig = {
   allowedHeaders: ['Content-Type','Authorization'],
 };
 
-app.options('/:path(*)', cors(corsConfig)); // ✅ Express v5 ok
+// เปลี่ยนมาใช้ '*' เพื่อรองรับทุกเส้นทางอย่างปลอดภัย
+app.options('*', cors(corsConfig));
 app.use(cors(corsConfig));
-
 
 // --- Security/Middlewares ---
 app.use(helmet());
