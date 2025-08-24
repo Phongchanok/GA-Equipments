@@ -74,6 +74,11 @@
     const params = new URLSearchParams(location.search);
     const code = params.get('code');
 
+    // ✅ กันเคสไม่มี code แล้วรีไดเรกต์กลับหน้า Scanner
+    if (!code) {
+      location.replace('qr-scanner.html');
+    }
+
     const titleEl = document.getElementById('equipmentTitle');
     const metaEl  = document.getElementById('equipmentMeta');
     const histEl  = document.getElementById('inspectionHistory');
