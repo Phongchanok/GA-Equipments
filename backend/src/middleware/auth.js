@@ -3,19 +3,19 @@ import jwt from 'jsonwebtoken';
 
 const isProd = process.env.NODE_ENV === 'production';
 
-// ถ้ากำหนด CORS_ORIGIN แปลว่าเรียกข้ามโดเมน ให้ตั้ง SameSite=None; Secure=true
-const allowedOrigins = (process.env.CORS_ORIGIN || '')
-  .split(',')
-  .map(s => s.trim())
-  .filter(Boolean);
-const isCrossSite = allowedOrigins.length > 0;
+// ถ้าตั้งค่า COOKIE_SAMESITE ไว้ให้ตามนั้น, ไม่งั้นถ้ามี cross-site ให้เป็น 'none' เพื่อให้ cookie ส่งข้ามโดเมนได้
+const inferredSameSite =
+  process.env.COOKIE_SAMESITE ||
+  // ถ้ามีการกำหนด CORS_ORIGIN และดูเหมือนข้ามโดเมน ให้ none
+  ((process.env.CORS_ORIGIN || '').split(',').some(o => o && !o.includes('localhost')) ? 'none' : 'lax');
 
 export const COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: isProd,                 // บน Render เป็น HTTPS อยู่แล้ว
-  sameSite: isCrossSite ? 'none' : 'lax',
+  // ถ้า SameSite เป็น none จะต้อง Secure = true เสมอ
+  secure: isProd || inferredSameSite === 'none',
+  sameSite: inferredSameSite, // 'none' | 'lax' | 'strict'
   path: '/',
-  maxAge: 1000 * 60 * 60 * 24 * 7 // 7 วัน
+  maxAge: 1000 * 60 * 60 * 24 * 7, // 7 วัน
 };
 
 export function signToken(payload) {

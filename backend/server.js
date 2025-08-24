@@ -18,60 +18,59 @@ import { errorHandler } from './src/middleware/error.js';
 const app = express();
 app.set('trust proxy', 1);
 
-// ---------- CORS ----------
+// --- CORS (รองรับ credentials + preflight) ---
 const allowed = (process.env.CORS_ORIGIN || '')
   .split(',')
   .map(s => s.trim())
   .filter(Boolean);
 
-// อนุญาต origin ที่กำหนดไว้ และอนุญาตกรณีไม่มี origin (บาง client/health-check)
-const corsOpts = {
+const corsConfig = {
   origin: (origin, cb) => {
-    if (!origin) return cb(null, true);
-    if (allowed.length === 0) return cb(null, true);
-    if (allowed.includes(origin)) return cb(null, true);
+    if (!origin) return cb(null, true); // รองรับ curl / server-to-server
+    if (allowed.length === 0 || allowed.includes(origin)) return cb(null, true);
     return cb(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET','POST','PUT','DELETE','PATCH','OPTIONS'],
-  allowedHeaders: ['Content-Type','Authorization']
+  allowedHeaders: ['Content-Type','Authorization'],
 };
 
-app.use(cors(corsOpts));
-app.options('*', cors(corsOpts)); // ตอบ preflight ทุกเส้นทาง
+// สำคัญ: Express v5 ห้ามใช้ '*' ให้ใช้ '(.*)'
+app.options('(.*)', cors(corsConfig));
+app.use(cors(corsConfig));
 
-// ---------- Common middlewares ----------
+// --- Security/Middlewares ---
 app.use(helmet());
 app.use(compression());
 app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
 app.use(morgan('dev'));
 
-// ---------- DB connect ----------
+// --- DB connect ---
 const mongoUri = process.env.MONGODB_URI;
 if (!mongoUri) throw new Error('MONGODB_URI is required');
 await mongoose.connect(mongoUri);
 
-// ---------- Health ----------
+// --- Basic root & health ---
+app.get('/', (req, res) => {
+  res.type('text/plain').send('GA-Equipment API is running');
+});
 app.get('/health', (req, res) => res.json({ ok: true }));
 
-// ---------- Routes ----------
+// --- API routes ---
 app.use('/auth', authRouter);
 app.use('/equipment', equipmentRouter);
 app.use('/requests', requestsRouter);
 app.use('/settings', settingsRouter);
 app.use('/export', exportRouter);
 
-// ---------- Final not-found (ถ้าจำเป็น) ----------
-// ใช้ middleware ท้ายสุดโดยไม่ใส่ path แทนการใช้ '*' เพื่อเลี่ยง path-to-regexp
-app.use((req, res, next) => {
-  if (res.headersSent) return next();
-  return res.status(404).json({ error: 'Not found' });
+// --- 404 ที่ปลอดภัย (ไม่ใช้ '*') ---
+app.use((req, res) => {
+  res.status(404).json({ error: 'Not found' });
 });
 
-// ---------- Error Handler ----------
+// --- error handler ---
 app.use(errorHandler);
 
-// ---------- Start ----------
 const port = process.env.PORT || 8080;
 app.listen(port, () => console.log(`API listening on :${port}`));
