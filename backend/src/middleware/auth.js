@@ -2,15 +2,20 @@
 import jwt from 'jsonwebtoken';
 
 const isProd = process.env.NODE_ENV === 'production';
-// ถ้า frontend อยู่คนละโดเมน ให้ตั้ง CROSS_SITE_COOKIES=true ใน env
-const crossSite = process.env.CROSS_SITE_COOKIES === 'true';
+
+// ถ้ากำหนด CORS_ORIGIN แปลว่าเรียกข้ามโดเมน ให้ตั้ง SameSite=None; Secure=true
+const allowedOrigins = (process.env.CORS_ORIGIN || '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
+const isCrossSite = allowedOrigins.length > 0;
 
 export const COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: isProd && (process.env.COOKIE_SECURE !== 'false'), // บน https เท่านั้นใน prod
-  sameSite: crossSite ? 'none' : 'lax',
+  secure: isProd,                 // บน Render เป็น HTTPS อยู่แล้ว
+  sameSite: isCrossSite ? 'none' : 'lax',
   path: '/',
-  maxAge: 1000 * 60 * 60 * 24 * 7, // 7 วัน
+  maxAge: 1000 * 60 * 60 * 24 * 7 // 7 วัน
 };
 
 export function signToken(payload) {

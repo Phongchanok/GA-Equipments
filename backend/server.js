@@ -16,62 +16,44 @@ import exportRouter from './src/routes/export.js';
 import { errorHandler } from './src/middleware/error.js';
 
 const app = express();
-
-// เชื่อ reverse proxy (เช่น Render/Heroku/NGINX) เพื่อให้ cookie Secure ทำงานถูกต้อง
 app.set('trust proxy', 1);
 
 // ---------- CORS ----------
-const allowedArr = (process.env.CORS_ORIGIN || '')
+const allowed = (process.env.CORS_ORIGIN || '')
   .split(',')
   .map(s => s.trim())
   .filter(Boolean);
 
-// ใช้ Set ให้เช็คไวขึ้น
-const allowedSet = new Set(allowedArr);
-
-// กำหนดตัวเลือก CORS เดียว ใช้ทั้งกับ use() และ options()
+// อนุญาต origin ที่กำหนดไว้ และอนุญาตกรณีไม่มี origin (บาง client/health-check)
 const corsOpts = {
-  origin(origin, cb) {
-    // อนุญาตกรณี same-origin / tools (ไม่มี Origin header)
+  origin: (origin, cb) => {
     if (!origin) return cb(null, true);
-
-    // ถ้าไม่ได้ตั้งค่าอะไรไว้เลย ให้สะท้อน origin กลับ (อนุญาตทั้งหมด)
-    if (allowedSet.size === 0) return cb(null, true);
-
-    if (allowedSet.has(origin)) return cb(null, true);
-
-    // ไม่อนุญาต origin นี้
-    return cb(new Error(`CORS: ${origin} is not allowed`));
+    if (allowed.length === 0) return cb(null, true);
+    if (allowed.includes(origin)) return cb(null, true);
+    return cb(new Error('Not allowed by CORS'));
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  methods: ['GET','POST','PUT','DELETE','PATCH','OPTIONS'],
+  allowedHeaders: ['Content-Type','Authorization']
 };
 
-// ตอบ preflight ให้ครบทุกเส้นทาง (สำคัญมากสำหรับ 502 จาก proxy)
-app.options('*', cors(corsOpts));
-// เปิด CORS สำหรับทุก request จริง
 app.use(cors(corsOpts));
+app.options('*', cors(corsOpts)); // ตอบ preflight ทุกเส้นทาง
 
-// ---------- Security / Utils ----------
-app.use(helmet({
-  // API อย่างเดียว ไม่เสิร์ฟไฟล์ static ข้ามโดเมน ปล่อยค่า default ก็พอ
-}));
+// ---------- Common middlewares ----------
+app.use(helmet());
 app.use(compression());
 app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
 app.use(morgan('dev'));
 
-// ---------- DB ----------
+// ---------- DB connect ----------
 const mongoUri = process.env.MONGODB_URI;
 if (!mongoUri) throw new Error('MONGODB_URI is required');
 await mongoose.connect(mongoUri);
 
-// ---------- Health & Root ----------
+// ---------- Health ----------
 app.get('/health', (req, res) => res.json({ ok: true }));
-app.get('/', (req, res) => {
-  res.type('text/plain').send('GA Equipment API is up');
-});
 
 // ---------- Routes ----------
 app.use('/auth', authRouter);
@@ -80,26 +62,16 @@ app.use('/requests', requestsRouter);
 app.use('/settings', settingsRouter);
 app.use('/export', exportRouter);
 
-// ---------- Error handlers ----------
-// จัดการ error จาก CORS ไม่ให้ตกไปเป็น 502 (proxy)
-app.use((err, req, res, next) => {
-  if (err && String(err.message || '').startsWith('CORS:')) {
-    return res.status(403).json({ error: err.message });
-  }
-  return next(err);
+// ---------- Final not-found (ถ้าจำเป็น) ----------
+// ใช้ middleware ท้ายสุดโดยไม่ใส่ path แทนการใช้ '*' เพื่อเลี่ยง path-to-regexp
+app.use((req, res, next) => {
+  if (res.headersSent) return next();
+  return res.status(404).json({ error: 'Not found' });
 });
 
-// ตัว error handler หลักของระบบ
+// ---------- Error Handler ----------
 app.use(errorHandler);
 
-// ---------- Boot ----------
+// ---------- Start ----------
 const port = process.env.PORT || 8080;
 app.listen(port, () => console.log(`API listening on :${port}`));
-
-// กัน process ล่มเงียบ ๆ
-process.on('unhandledRejection', (e) => {
-  console.error('unhandledRejection:', e);
-});
-process.on('uncaughtException', (e) => {
-  console.error('uncaughtException:', e);
-});
