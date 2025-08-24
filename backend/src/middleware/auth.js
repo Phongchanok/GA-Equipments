@@ -4,8 +4,8 @@ import jwt from 'jsonwebtoken';
 const isProd = process.env.NODE_ENV === 'production';
 export const COOKIE_OPTIONS = {
 httpOnly: true,
-secure: isProd || isCrossSite,  
-sameSite: isCrossSite ? 'none' : 'lax',
+secure: isProd,  
+sameSite: isProd ? 'none' : 'lax',
 path: '/',
 maxAge: 1000 * 60 * 60 * 24 * 7 // 7 days
 };

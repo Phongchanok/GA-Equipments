@@ -15,6 +15,7 @@ import exportRouter from './src/routes/export.js';
 import { errorHandler } from './src/middleware/error.js';
 
 const app = express();
+app.set('trust proxy', 1); 
 
 // CORS with credentials
 const allowed = (process.env.CORS_ORIGIN || '')
